@@ -1,1 +1,4 @@
 .idea
+.terraform
+dist/
+config.tfvars
