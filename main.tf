@@ -42,17 +42,23 @@ data "archive_file" "lambda_zip" {
     filename = "index.js"
 
     content = <<EOF
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3({ region: '${var.region}' });
+
 exports.handler = (event, context, callback) => {
+  const Bucket = '${var.domain}';
   const request = event.Records[0].cf.request;
-  const response = event.Records[0].cf.response;
-
   const dir = request.headers.host[0].value.replace(/\.?${var.domain}$$/, '');
-  const uri = `/$${dir}/$${request.uri}`.replace('//', '/');
+  const uri = request.uri.substr(1);
+  const path = (parts = [], prefix = '/') => `$${prefix}$${parts.join('/')}`.replace(/\/\//g, '/');
 
-  console.log(JSON.stringify(request, null, 2));
-  console.log('uri', uri, dir);
-
-  callback(null, Object.assign(request, { uri }));
+  s3.headObject({ Bucket, Key: path([dir, uri], '') }).promise()
+    .then(() => callback(null, Object.assign(request, { uri: path([dir, uri]) })))
+    .catch(() =>
+      s3.headObject({ Bucket, Key: path([dir, uri, 'index.html'], '') }).promise()
+        .then(() => callback(null, Object.assign(request, { uri: path([dir, uri, 'index.html']) })))
+        .catch(() => callback(null, Object.assign(request, { uri: path([dir, 'index.html']) })))
+    );
 };
 EOF
   }
