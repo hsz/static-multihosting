@@ -1,23 +1,21 @@
 variable "domain" {
   type        = "string"
-  description = "Domain that will be assigned with the service, i.e. dev.example.com"
+  description = "Domain that will be assigned with the service, example: dev.example.com"
 }
 
 variable "rootDomain" {
   type        = "string"
-  description = "Root domain used in Route53, i.e. example.com"
+  description = "Root domain used in Route53, example: example.com"
 }
 
 variable "name" {
   type        = "string"
-  default     = "static-multiverse"
-  description = "Service name"
+  description = "Service name that will be used in AWS infrastructure, example: static-multiverse"
 }
 
 variable "region" {
   type        = "string"
-  default     = "eu-central-1"
-  description = "AWS Region"
+  description = "AWS Region, example: eu-central-1"
 }
 
 provider "aws" {
