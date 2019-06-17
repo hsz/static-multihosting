@@ -19,7 +19,7 @@ variable "region" {
 }
 
 provider "aws" {
-  region = "${var.region}"
+  region = var.region
 }
 
 provider "aws" {
@@ -28,7 +28,7 @@ provider "aws" {
 }
 
 locals {
-  rootDomain = "${var.rootDomain != "" ? var.rootDomain : var.domain}"
+  rootDomain = var.rootDomain != "" ? var.rootDomain : var.domain
 }
 
 # Prepare Lambda@Edge function package
@@ -65,40 +65,40 @@ EOF
 # Create SSL certificate for our domain with its subdomain wildcard
 resource "aws_acm_certificate" "default" {
   provider                  = "aws.edge"
-  domain_name               = "${var.domain}"
+  domain_name               = var.domain
   subject_alternative_names = ["*.${var.domain}"]
   validation_method         = "DNS"
 
   tags {
-    Name = "${var.name}"
+    Name = var.name
   }
 }
 
 # Create Route53 records for domain and wildcard
 data "aws_route53_zone" "default" {
-  name = "${local.rootDomain}"
+  name = local.rootDomain
 }
 
 resource "aws_route53_record" "main" {
-  zone_id = "${data.aws_route53_zone.default.zone_id}"
-  name    = "${var.domain}"
+  zone_id = data.aws_route53_zone.default.zone_id
+  name    = var.domain
   type    = "A"
 
   alias {
-    name                   = "${aws_cloudfront_distribution.default.domain_name}"
-    zone_id                = "${aws_cloudfront_distribution.default.hosted_zone_id}"
+    name                   = aws_cloudfront_distribution.default.domain_name
+    zone_id                = aws_cloudfront_distribution.default.hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 resource "aws_route53_record" "wildcard" {
-  zone_id = "${data.aws_route53_zone.default.zone_id}"
+  zone_id = data.aws_route53_zone.default.zone_id
   name    = "*.${var.domain}"
   type    = "A"
 
   alias {
-    name                   = "${aws_cloudfront_distribution.default.domain_name}"
-    zone_id                = "${aws_cloudfront_distribution.default.hosted_zone_id}"
+    name                   = aws_cloudfront_distribution.default.domain_name
+    zone_id                = aws_cloudfront_distribution.default.hosted_zone_id
     evaluate_target_health = false
   }
 }
@@ -150,8 +150,8 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = "${aws_iam_role.default.name}"
-  policy_arn = "${aws_iam_policy.default.arn}"
+  role       = aws_iam_role.default.name
+  policy_arn = aws_iam_policy.default.arn
 }
 
 # Create Lambda@Edge function
@@ -160,16 +160,16 @@ resource "aws_lambda_function" "default" {
   filename         = "dist/lambda.zip"
   handler          = "index.handler"
   runtime          = "nodejs8.10"
-  source_code_hash = "${data.archive_file.lambda_zip.output_base64sha256}"
-  function_name    = "${var.name}"
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  function_name    = var.name
   description      = "${var.name} Lambda@Edge function"
-  role             = "${aws_iam_role.default.arn}"
+  role             = aws_iam_role.default.arn
   publish          = "true"
 }
 
 # Prepare S3 bucket
 resource "aws_s3_bucket" "default" {
-  bucket        = "${var.domain}"
+  bucket        = var.domain
   acl           = "public-read"
   force_destroy = "true"
 
@@ -183,7 +183,7 @@ resource "aws_s3_bucket" "default" {
 }
 
 resource "aws_s3_bucket_object" "index" {
-  bucket = "${aws_s3_bucket.default.bucket}"
+  bucket = aws_s3_bucket.default.bucket
   key    = "index.html"
   acl    = "public-read"
 
@@ -200,8 +200,8 @@ resource "aws_cloudfront_distribution" "default" {
   depends_on = ["aws_lambda_function.default", "aws_acm_certificate.default", "aws_s3_bucket.default"]
 
   origin {
-    origin_id   = "${aws_s3_bucket.default.id}"
-    domain_name = "${aws_s3_bucket.default.website_endpoint}"
+    origin_id   = aws_s3_bucket.default.id
+    domain_name = aws_s3_bucket.default.website_endpoint
 
     custom_origin_config {
       http_port              = 80
@@ -211,7 +211,7 @@ resource "aws_cloudfront_distribution" "default" {
     }
   }
 
-  aliases             = ["${var.domain}", "*.${var.domain}"]
+  aliases             = [var.domain, "*.${var.domain}"]
   default_root_object = "index.html"
   enabled             = true
   is_ipv6_enabled     = true
@@ -219,7 +219,7 @@ resource "aws_cloudfront_distribution" "default" {
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "${var.domain}"
+    target_origin_id       = var.domain
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
     min_ttl                = 0
@@ -249,7 +249,7 @@ resource "aws_cloudfront_distribution" "default" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = "${aws_acm_certificate.default.arn}"
+    acm_certificate_arn      = aws_acm_certificate.default.arn
     minimum_protocol_version = "TLSv1.1_2016"
     ssl_support_method       = "sni-only"
   }
